@@ -1,6 +1,9 @@
 # Update device tree to use devices
 
-Welcome to our instructional guide for updating device tree for our NVIDIA Jetson Xavier NX / Orin NX devices. This program helps you to enable microSD card slot, CSI camera dual lane support and fan tachometer.
+Welcome to our instructional guide for updating device tree for our NVIDIA Jetson Xavier NX / Orin NX compatible carrier board. This program helps you to enable microSD card slot, CSI camera dual lane support and fan tachometer.
+
+This program is written in Rust 2021.
+and precompiled with rustc 1.69.0 (84c898d65 2023-04-16)
 
 ### Description
 
@@ -9,7 +12,8 @@ Welcome to our instructional guide for updating device tree for our NVIDIA Jetso
 * (Xavier NX Only) Enable microSD slot. GPIO01(PQ.05) will be used as SD_CD for sd detection.
 * Apply patch for CSI Camera dual lane support.
 * Apply patch for cooling fan tachometer.
-* Add new boot menu with patched dtb.
+* Compile modified device tree specification.
+* Add new boot menu with patched device tree blob.
 
 ### Quick install
 
