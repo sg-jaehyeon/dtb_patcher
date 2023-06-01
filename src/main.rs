@@ -95,9 +95,6 @@ impl Extlinux {
         }
         label_lines.push(0);
 
-        println!("Label lines :");
-        println!("{:?}", label_lines);
-
         label_lines.into_iter().fold(0, |acc, x| {
             if acc > 0 {
                 let mut entry = ExtlinuxEntry {
@@ -159,8 +156,6 @@ impl DtbNode {
             child_nodes: Vec::<Box<DtbNode>>::new(),
         };
 
-        println!("parse enter with index = {index}, start = {:?}", start);
-
         ret.node_name = content_vec[start.0].trim().strip_suffix("{").unwrap().trim().to_string();
 
         let mut idx = start.0;
@@ -182,13 +177,14 @@ impl DtbNode {
             } else if brackets[bracket_idx + 1].0 == idx && brackets[bracket_idx + 1].1 == 1 {
                 // close
                 return (bracket_idx + 1, ret);
-            } else if content_vec[idx].contains("=") {
+            } else if content_vec[idx].contains(" = ") {
                 // property with (key, value)
-                let v: Vec<&str> = content_vec[idx].trim().split("=").map(|s| s.trim()).collect();
+                let v: Vec<&str> = content_vec[idx].trim().split(" = ").map(|s| s.trim()).collect();
                 let property = DtbProperty {
                     key: String::from(v[0]),
-                    value: Some(String::from(v[1])),
+                    value: Some(String::from(v[1].trim().strip_suffix(";").unwrap())),
                 };
+
                 ret.properties.push(property);
             } else if !content_vec[idx].contains("=") && content_vec[idx].contains(";") {
                 // property with no value
@@ -227,14 +223,8 @@ impl DtbNode {
                                                     .map(|(idx, _line)| (idx, 1))
                                                     .collect();
 
-        println!("Open brackets : {:?}", opens);
-        println!("Close brackets : {:?}", closes);
-        println!("Open brackets : {}, Close brackets : {}", opens.len(), closes.len());
-
         opens.append(&mut closes);
         opens.sort_unstable_by(|(idx1, _), (idx2, _)| idx1.cmp(idx2));
-
-        println!("Concatenated and sorted : {:?}", opens);
 
         *self = Self::parse(&content_vec, &opens, 0, opens[0].clone()).1;
     }
@@ -249,10 +239,7 @@ fn main() {
     };
     extlinux.init();
 
-    println!("{}", extlinux.timeout.clone().unwrap());
-    println!("{}", extlinux.default.clone().unwrap());
-    println!("{}", extlinux.menu_title.clone().unwrap());
-
+/*
     for entry in &extlinux.entries {
         println!("{}", entry.label.clone().unwrap());
         println!("{}", entry.menu_label.clone().unwrap());
@@ -261,6 +248,7 @@ fn main() {
         println!("{}", entry.initrd.clone().unwrap());
         println!("{}", entry.append.clone().unwrap());
     }
+*/
 
     // target device tree file name
 
@@ -425,7 +413,7 @@ fn main() {
 
     // apply root to new dts file
 
-    println!("{root:?}");
+    // println!("{root:?}");
     
     // compile
     let _compile = Command::new("dtc")
