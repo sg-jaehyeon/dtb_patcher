@@ -149,6 +149,58 @@ impl fmt::Debug for DtbNode {
 }
 
 impl DtbNode {
+    fn indent(n: usize) -> String {
+        "\t".repeat(n)
+    }
+
+    fn stringify(&self, indent: usize) -> String {
+        let mut ret = String::new();
+
+        if self.node_name == "/" && indent == 0 {
+            ret.push_str("/dts-v1/;");
+            ret.push('\n');
+            ret.push('\n');
+        }
+
+        ret.push_str(&(Self::indent(indent) + &self.node_name + " {\n")[..]);
+
+        // properties
+        for property in &self.properties {
+            let mut property_string = Self::indent(indent+1);
+            property_string.push_str(&property.key);
+            match &property.value {
+                Some(value) => {
+                    property_string.push_str(" = ");
+                    property_string.push_str(&value);
+                },
+                _ => {}
+            }
+            property_string.push_str(";\n");
+
+            ret.push_str(&property_string);
+        }
+
+        // add new line between properties and child_nodes
+        // if there are no child nodes, just close node.
+        if self.child_nodes.len() > 0 {
+            ret.push_str("\n");
+        }
+
+        // child_nodes
+        for (idx, node) in self.child_nodes.iter().enumerate() {
+            ret.push_str(&node.stringify(indent+1));
+            if idx < self.child_nodes.len() - 1 {
+                ret.push_str("\n");
+            }
+        }
+
+        // close node
+        ret.push_str(&Self::indent(indent));
+        ret.push_str("};\n");
+
+        ret
+    }
+
     fn parse(content_vec: &Vec<&str>, brackets: &Vec<(usize, usize)>, index: usize, start: (usize, usize)) -> (usize, DtbNode) {
         let mut ret = DtbNode {
             node_name: String::new(),
@@ -256,6 +308,8 @@ fn main() {
 
     let target_dtb = default_entry.fdt.clone().unwrap();
     let target_dts = target_dtb.as_str().strip_suffix(".dtb").unwrap().to_string() + ".dts";
+    let new_dts_filename = target_dtb.as_str().strip_suffix(".dtb").unwrap().to_string() + "_new.dts";
+    let new_dtb_filename = new_dts_filename.as_str().strip_suffix(".dts").unwrap().to_string() + ".dtb";
     
     // backup dtb
     print!("Backup device tree blob file... ");
@@ -301,6 +355,7 @@ fn main() {
     dts.read_to_string(&mut buffer).expect("Error : Cannot read from dts file");
     println!("OK");
     
+    /*
     print!("Finding target node from dts file... ");
     match buffer.find("sdhci@3440000 {") {
         Some(idx) => {
@@ -341,6 +396,7 @@ fn main() {
             println!("microSD patch passed");
         }
     }
+    */
 
     // initialize root node
     let mut root = DtbNode {
@@ -356,7 +412,7 @@ fn main() {
     match root.find_childnode("sdhci@3440000") {
         Some(sdhci) => {
             let status = sdhci.find_property("status").unwrap();
-            status.value = Some(String::from("okay"));
+            status.value = Some(String::from("\"okay\""));
         },
         None => {
             println!("Orin NX does not support microSD");
@@ -371,11 +427,11 @@ fn main() {
 
     rbpcv3_imx477_a_1a.find_childnode("mode0").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv3_imx477_a_1a.find_childnode("mode1").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv3_imx477_a_1a.find_childnode("ports").unwrap()
                     .find_childnode("port@0").unwrap()
@@ -387,23 +443,23 @@ fn main() {
 
     rbpcv2_imx219_a_10.find_childnode("mode0").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv2_imx219_a_10.find_childnode("mode1").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv2_imx219_a_10.find_childnode("mode2").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv2_imx219_a_10.find_childnode("mode3").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv2_imx219_a_10.find_childnode("mode4").unwrap()
                     .find_property("tegra_sinterface").unwrap()
-                    .value = Some("serial_a".to_string());
+                    .value = Some("\"serial_a\"".to_string());
 
     rbpcv2_imx219_a_10.find_childnode("ports").unwrap()
                     .find_childnode("port@0").unwrap()
@@ -412,14 +468,55 @@ fn main() {
                     .value = Some("<0x00>".to_string());
 
     // apply root to new dts file
+    
+    let patched = root.stringify(0);
+    let mut patched_dts = OpenOptions::new()
+                                .write(true)
+                                .truncate(true)
+                                .create(true)
+                                .open(&new_dts_filename)
+                                .expect("Error : Cannot create new dts file");
+
+    patched_dts.write_all(patched.as_bytes()).expect("Error : Cannot write to new dts file");
 
     // println!("{root:?}");
     
     // compile
+    print!("Compile patched dts file... ");
     let _compile = Command::new("dtc")
-                        .args(["-I", "dts", "-O", "dtb", &target_dts, "-o", &target_dtb])
+                        .args(["-I", "dts", "-O", "dtb", &new_dts_filename, "-o", &new_dtb_filename])
                         .output()
                         .expect("Error : Failed to compiile patched dts");
+    println!("OK");
 
-    println!("Patch finished!");
+    // if compile succeeded, add new boot menu to extlinux.conf
+    let mut extlinux_file = OpenOptions::new()
+                                        .write(true)
+                                        .read(true)
+                                        .open("/boot/extlinux/extlinux.conf")
+                                        .expect("Error : Cannot open extlinux.conf");
+
+    let mut extlinux_content = String::new();
+
+    let default_entry = extlinux.entries.iter().find(|entry| entry.label.clone().unwrap() == extlinux.default.clone().unwrap()).unwrap();
+
+
+    extlinux_content.push_str("\n\n");
+    extlinux_content.push_str("LABEL patched_");
+    extlinux_content.push_str(&default_entry.label.clone().unwrap());
+    extlinux_content.push_str("\n\tMENU LABEL patched_");
+    extlinux_content.push_str(&default_entry.menu_label.clone().unwrap());
+    extlinux_content.push_str("\n\tLINUX ");
+    extlinux_content.push_str(&default_entry.linux.clone().unwrap());
+    extlinux_content.push_str("\n\tFDT ");
+    extlinux_content.push_str(&new_dtb_filename);
+    extlinux_content.push_str("\n\tINITRD ");
+    extlinux_content.push_str(&default_entry.initrd.clone().unwrap());
+    extlinux_content.push_str("\n\tAPPEND ");
+    extlinux_content.push_str(&default_entry.append.clone().unwrap());
+    extlinux_content.push_str("\n");
+
+    extlinux_file.write_all(extlinux_content.as_bytes()).expect("Error : Cannot write to extlinux.conf");
+
+    println!("Patch finished succesfully");
 }
