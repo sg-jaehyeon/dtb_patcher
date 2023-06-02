@@ -355,49 +355,6 @@ fn main() {
     dts.read_to_string(&mut buffer).expect("Error : Cannot read from dts file");
     println!("OK");
     
-    /*
-    print!("Finding target node from dts file... ");
-    match buffer.find("sdhci@3440000 {") {
-        Some(idx) => {
-            println!("OK");
-            let mut lower = buffer[idx..].to_string();
-
-            print!("Finding status of target node... ");
-            let first_status = lower.find("status = ").unwrap();
-            let first_disabled_status = lower.find("status = \"disabled\"").unwrap();
-
-            if first_status == first_disabled_status {
-                // need to be patched
-                println!("OK");
-                print!("Patching... ");
-                lower = lower.replacen("disabled", "okay", 1);
-
-                let patched_string = buffer[0..idx].to_string() + &lower[..];
-
-                let mut dts_write = OpenOptions::new()
-                                        .write(true)
-                                        .truncate(true)
-                                        .open(&target_dts)
-                                        .expect("Error : Cannot open dts file with writeonly");
-                
-                dts_write.write_all(patched_string.as_bytes()).unwrap();
-                println!("OK");
-            }
-            else
-            {
-                // already patched
-                println!("");
-                println!("It seems to be already patched... setup abort");
-                return;
-            }
-
-        },
-        None => {
-            println!("microSD patch passed");
-        }
-    }
-    */
-
     // initialize root node
     let mut root = DtbNode {
         node_name: String::new(),
@@ -478,8 +435,6 @@ fn main() {
                                 .expect("Error : Cannot create new dts file");
 
     patched_dts.write_all(patched.as_bytes()).expect("Error : Cannot write to new dts file");
-
-    // println!("{root:?}");
     
     // compile
     print!("Compile patched dts file... ");
@@ -491,8 +446,8 @@ fn main() {
 
     // if compile succeeded, add new boot menu to extlinux.conf
     let mut extlinux_file = OpenOptions::new()
-                                        .write(true)
                                         .read(true)
+                                        .append(true)
                                         .open("/boot/extlinux/extlinux.conf")
                                         .expect("Error : Cannot open extlinux.conf");
 
