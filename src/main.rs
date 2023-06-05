@@ -308,8 +308,6 @@ fn main() {
 
     let target_dtb = default_entry.fdt.clone().unwrap();
     let target_dts = target_dtb.as_str().strip_suffix(".dtb").unwrap().to_string() + ".dts";
-    let new_dts_filename = target_dtb.as_str().strip_suffix(".dtb").unwrap().to_string() + "_new.dts";
-    let new_dtb_filename = new_dts_filename.as_str().strip_suffix(".dts").unwrap().to_string() + ".dtb";
     
     // backup dtb
     print!("Backup device tree blob file... ");
@@ -354,49 +352,6 @@ fn main() {
     let mut buffer = String::new();
     dts.read_to_string(&mut buffer).expect("Error : Cannot read from dts file");
     println!("OK");
-    
-    /*
-    print!("Finding target node from dts file... ");
-    match buffer.find("sdhci@3440000 {") {
-        Some(idx) => {
-            println!("OK");
-            let mut lower = buffer[idx..].to_string();
-
-            print!("Finding status of target node... ");
-            let first_status = lower.find("status = ").unwrap();
-            let first_disabled_status = lower.find("status = \"disabled\"").unwrap();
-
-            if first_status == first_disabled_status {
-                // need to be patched
-                println!("OK");
-                print!("Patching... ");
-                lower = lower.replacen("disabled", "okay", 1);
-
-                let patched_string = buffer[0..idx].to_string() + &lower[..];
-
-                let mut dts_write = OpenOptions::new()
-                                        .write(true)
-                                        .truncate(true)
-                                        .open(&target_dts)
-                                        .expect("Error : Cannot open dts file with writeonly");
-                
-                dts_write.write_all(patched_string.as_bytes()).unwrap();
-                println!("OK");
-            }
-            else
-            {
-                // already patched
-                println!("");
-                println!("It seems to be already patched... setup abort");
-                return;
-            }
-
-        },
-        None => {
-            println!("microSD patch passed");
-        }
-    }
-    */
 
     // initialize root node
     let mut root = DtbNode {
@@ -419,6 +374,7 @@ fn main() {
         }
     }
 
+    /*
     // camera patch
     let cam_i2c0 = root.find_childnode("cam_i2cmux").unwrap()
                         .find_childnode("i2c@0").unwrap();
@@ -466,7 +422,8 @@ fn main() {
                     .find_childnode("endpoint").unwrap()
                     .find_property("port-index").unwrap()
                     .value = Some("<0x00>".to_string());
-
+    */
+    
     // apply root to new dts file
     
     let patched = root.stringify(0);
@@ -474,7 +431,7 @@ fn main() {
                                 .write(true)
                                 .truncate(true)
                                 .create(true)
-                                .open(&new_dts_filename)
+                                .open(&target_dts)
                                 .expect("Error : Cannot create new dts file");
 
     patched_dts.write_all(patched.as_bytes()).expect("Error : Cannot write to new dts file");
@@ -484,7 +441,7 @@ fn main() {
     // compile
     print!("Compile patched dts file... ");
     let _compile = Command::new("dtc")
-                        .args(["-I", "dts", "-O", "dtb", &new_dts_filename, "-o", &new_dtb_filename])
+                        .args(["-I", "dts", "-O", "dtb", &target_dts, "-o", &target_dtb])
                         .output()
                         .expect("Error : Failed to compiile patched dts");
     println!("OK");
@@ -501,15 +458,15 @@ fn main() {
     let default_entry = extlinux.entries.iter().find(|entry| entry.label.clone().unwrap() == extlinux.default.clone().unwrap()).unwrap();
 
 
-    extlinux_content.push_str("\n\n");
-    extlinux_content.push_str("LABEL patched_");
+    extlinux_content.push_str("\n");
+    extlinux_content.push_str("LABEL backup_");
     extlinux_content.push_str(&default_entry.label.clone().unwrap());
-    extlinux_content.push_str("\n\tMENU LABEL patched_");
+    extlinux_content.push_str("\n\tMENU LABEL backup_");
     extlinux_content.push_str(&default_entry.menu_label.clone().unwrap());
     extlinux_content.push_str("\n\tLINUX ");
     extlinux_content.push_str(&default_entry.linux.clone().unwrap());
     extlinux_content.push_str("\n\tFDT ");
-    extlinux_content.push_str(&new_dtb_filename);
+    extlinux_content.push_str(&(default_entry.fdt.clone().unwrap().to_string() + ".backup"));
     extlinux_content.push_str("\n\tINITRD ");
     extlinux_content.push_str(&default_entry.initrd.clone().unwrap());
     extlinux_content.push_str("\n\tAPPEND ");
