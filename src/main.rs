@@ -435,8 +435,6 @@ fn main() {
                                 .expect("Error : Cannot create new dts file");
 
     patched_dts.write_all(patched.as_bytes()).expect("Error : Cannot write to new dts file");
-
-    // println!("{root:?}");
     
     // compile
     print!("Compile patched dts file... ");
@@ -448,8 +446,8 @@ fn main() {
 
     // if compile succeeded, add new boot menu to extlinux.conf
     let mut extlinux_file = OpenOptions::new()
-                                        .write(true)
                                         .read(true)
+                                        .append(true)
                                         .open("/boot/extlinux/extlinux.conf")
                                         .expect("Error : Cannot open extlinux.conf");
 
