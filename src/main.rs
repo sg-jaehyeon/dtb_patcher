@@ -291,17 +291,6 @@ fn main() {
     };
     extlinux.init();
 
-/*
-    for entry in &extlinux.entries {
-        println!("{}", entry.label.clone().unwrap());
-        println!("{}", entry.menu_label.clone().unwrap());
-        println!("{}", entry.linux.clone().unwrap());
-        println!("{}", entry.fdt.clone().unwrap());
-        println!("{}", entry.initrd.clone().unwrap());
-        println!("{}", entry.append.clone().unwrap());
-    }
-*/
-
     // target device tree file name
 
     let default_entry = extlinux.entries.iter().find(|&entry| entry.label == extlinux.default).unwrap();
@@ -374,7 +363,6 @@ fn main() {
         }
     }
 
-    /*
     // camera patch
     let cam_i2c0 = root.find_childnode("cam_i2cmux").unwrap()
                         .find_childnode("i2c@0").unwrap();
@@ -422,7 +410,6 @@ fn main() {
                     .find_childnode("endpoint").unwrap()
                     .find_property("port-index").unwrap()
                     .value = Some("<0x00>".to_string());
-    */
     
     // apply root to new dts file
     
@@ -444,34 +431,5 @@ fn main() {
                         .expect("Error : Failed to compiile patched dts");
     println!("OK");
 
-    // if compile succeeded, add new boot menu to extlinux.conf
-    let mut extlinux_file = OpenOptions::new()
-                                        .read(true)
-                                        .append(true)
-                                        .open("/boot/extlinux/extlinux.conf")
-                                        .expect("Error : Cannot open extlinux.conf");
-
-    let mut extlinux_content = String::new();
-
-    let default_entry = extlinux.entries.iter().find(|entry| entry.label.clone().unwrap() == extlinux.default.clone().unwrap()).unwrap();
-
-
-    extlinux_content.push_str("\n");
-    extlinux_content.push_str("LABEL backup_");
-    extlinux_content.push_str(&default_entry.label.clone().unwrap());
-    extlinux_content.push_str("\n\tMENU LABEL backup_");
-    extlinux_content.push_str(&default_entry.menu_label.clone().unwrap());
-    extlinux_content.push_str("\n\tLINUX ");
-    extlinux_content.push_str(&default_entry.linux.clone().unwrap());
-    extlinux_content.push_str("\n\tFDT ");
-    extlinux_content.push_str(&(default_entry.fdt.clone().unwrap().to_string() + ".backup"));
-    extlinux_content.push_str("\n\tINITRD ");
-    extlinux_content.push_str(&default_entry.initrd.clone().unwrap());
-    extlinux_content.push_str("\n\tAPPEND ");
-    extlinux_content.push_str(&default_entry.append.clone().unwrap());
-    extlinux_content.push_str("\n");
-
-    extlinux_file.write_all(extlinux_content.as_bytes()).expect("Error : Cannot write to extlinux.conf");
-
-    println!("Patch finished succesfully");
+    println!("Patch finished succesfully. Please reboot the system");
 }
